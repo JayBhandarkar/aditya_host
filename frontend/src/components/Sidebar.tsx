@@ -18,7 +18,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: 'image-upload', label: 'Image/PDF Upload', icon: '🖼️', href: '/image-upload' },
     { id: 'learning-modules', label: t('nav.learning'), icon: '📚', href: '/learning-modules' },
     { id: 'literature-centre', label: 'Literature Centre', icon: '📖', href: '/literature-centre' },
-    { id: 'download-extension', label: 'Download Extension', icon: '⬇️', href: '/download-extension' },
+    { id: 'get-extension', label: 'Get Extension', icon: '🚀', href: '/download-extension' },
   ]
 
   return (
