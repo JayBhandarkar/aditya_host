@@ -1,7 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
 transformers
 torch
-pydantic
 sentencepiece
-pymongo
+python-dotenv
+pydantic

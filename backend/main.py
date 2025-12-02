@@ -1,178 +1,123 @@
+import os
+import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import logging
-from database import save_translation, get_translation_history
+from transformers import MBart50TokenizerFast, MBartForConditionalGeneration
+from dotenv import load_dotenv
+import uvicorn
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Load environment variables
+load_dotenv()
 
-app = FastAPI(title="Translation API")
+app = FastAPI(
+    title="Translation API",
+    description="Translate Nepali/Sinhala to English using fine-tuned MBART",
+    version="1.0"
+)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global variables
-model = None
+# Global variables for model and tokenizer
 tokenizer = None
-model_status = "loading"
+model = None
+device = None
 
-def load_model():
-    global model, tokenizer, model_status
-    try:
-        logger.info("Loading merged translation model...")
+class TranslateRequest(BaseModel):
+    text: str
+    src_lang: str = "ne_NP"  # Default to Nepali
+    tgt_lang: str = "en_XX"  # Default to English
+
+def load_model_lazy():
+    global tokenizer, model, device
+    
+    if tokenizer is None or model is None:
+        MODEL_ID = os.getenv("MODEL_ID", "Nikss2709/Mbart-nepali-sinhala-finetuned")
         
-        from transformers import MBartForConditionalGeneration, MBart50Tokenizer
-        import torch
-        import os
+        print("Loading tokenizer...")
+        tokenizer = MBart50TokenizerFast.from_pretrained(MODEL_ID)
         
-        model_path = "../merged_model"
+        print("Loading model with low memory usage...")
+        model = MBartForConditionalGeneration.from_pretrained(
+            MODEL_ID,
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=True,
+            device_map="auto"
+        )
         
-        if not os.path.exists(model_path):
-            logger.warning("Local model not found, using fallback translation")
-            model_status = "fallback"
-            return
-        
-        logger.info("Loading tokenizer...")
-        tokenizer = MBart50Tokenizer.from_pretrained(model_path)
-        
-        logger.info("Loading model...")
-        model = MBartForConditionalGeneration.from_pretrained(model_path)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if device == "cpu":
+            model = model.to(device)
         model.eval()
         
-        model_status = "ready"
-        logger.info("Model loaded successfully!")
-        
-    except Exception as e:
-        logger.error(f"Error loading model: {e}")
-        model_status = "fallback"
-        model = None
-        tokenizer = None
+        print(f"Model loaded on: {device}")
 
-# Load model on startup
-load_model()
+def translate_text(text: str, src_lang: str, tgt_lang: str):
+    load_model_lazy()
+    
+    if not tokenizer or not model:
+        raise HTTPException(status_code=500, detail="Model not loaded")
+    
+    tokenizer.src_lang = src_lang
+    tokenizer.tgt_lang = tgt_lang
 
-class TranslationRequest(BaseModel):
-    text: str
-    source_lang: str
-    target_lang: str
+    encoded = tokenizer(
+        text,
+        return_tensors="pt",
+        truncation=True,
+        padding=True,
+        max_length=128
+    ).to(device)
 
-class TranslationResponse(BaseModel):
-    translated_text: str
-    source_lang: str
-    target_lang: str
+    generated = model.generate(
+        **encoded,
+        max_length=128,
+        num_beams=4,
+        early_stopping=True
+    )
+
+    output = tokenizer.decode(generated[0], skip_special_tokens=True)
+    return output
 
 @app.get("/")
-async def root():
-    return {
-        "message": "Translation API", 
-        "model_status": model_status,
-        "model_loaded": model is not None
-    }
+def home():
+    return {"message": "Translation API is running!", "status": "healthy"}
 
-@app.post("/translate", response_model=TranslationResponse)
-async def translate_text(request: TranslationRequest):
-    if model_status == "fallback":
-        # Fallback translation for demo purposes
-        input_text = request.text.strip()
-        if not input_text:
-            raise HTTPException(status_code=400, detail="Empty text")
-        
-        translated_text = f"[Demo Translation] {input_text}"
-        
-        try:
-            save_translation(input_text, translated_text, request.source_lang, request.target_lang)
-        except Exception as db_error:
-            logger.warning(f"Failed to save to database: {db_error}")
-        
-        return TranslationResponse(
-            translated_text=translated_text,
-            source_lang=request.source_lang,
-            target_lang=request.target_lang
-        )
-    
-    if model is None or tokenizer is None:
-        raise HTTPException(
-            status_code=503, 
-            detail=f"Model not available. Status: {model_status}"
-        )
-    
+@app.post("/translate")
+def translate_api(req: TranslateRequest):
     try:
-        input_text = request.text.strip()
-        if not input_text:
-            raise HTTPException(status_code=400, detail="Empty text")
-        
-        # Set language codes
-        if request.source_lang == "nepali":
-            src_lang = "ne_NP"
-        elif request.source_lang == "sinhala":
-            src_lang = "si_LK"
-        else:
-            raise HTTPException(status_code=400, detail="Unsupported source language")
-        
-        tgt_lang = "en_XX"
-        
-        # Set source language
-        tokenizer.src_lang = src_lang
-        
-        # Tokenize
-        encoded = tokenizer(input_text, return_tensors="pt")
-        
-        # Generate translation
-        import torch
-        with torch.no_grad():
-            generated_tokens = model.generate(
-                **encoded,
-                forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang],
-                max_length=512,
-                num_beams=4,
-                early_stopping=True
-            )
-        
-        # Decode
-        translated_text = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
-        
-        # Save to database
-        try:
-            save_translation(input_text, translated_text, request.source_lang, request.target_lang)
-        except Exception as db_error:
-            logger.warning(f"Failed to save to database: {db_error}")
-        
-        return TranslationResponse(
-            translated_text=translated_text,
-            source_lang=request.source_lang,
-            target_lang=request.target_lang
-        )
-        
+        result = translate_text(req.text, req.src_lang, req.tgt_lang)
+        return {"translated_text": result, "source_language": req.src_lang, "target_language": req.tgt_lang}
     except Exception as e:
-        logger.error(f"Translation error: {e}")
         raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
 
 @app.get("/supported-languages")
-async def get_supported_languages():
+def get_supported_languages():
     return {
-        "languages": [
-            {"code": "nepali", "name": "Nepali"},
-            {"code": "sinhala", "name": "Sinhala"},
-            {"code": "english", "name": "English"}
+        "source_languages": [
+            {"code": "ne_NP", "name": "Nepali", "display": "नेपाली"},
+            {"code": "si_LK", "name": "Sinhala", "display": "සිංහල"}
+        ],
+        "target_languages": [
+            {"code": "en_XX", "name": "English", "display": "English"}
         ]
     }
 
-@app.get("/history")
-async def get_history():
-    try:
-        history = get_translation_history()
-        return {"translations": history}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
+@app.get("/health")
+def health_check():
+    model_status = "loaded" if model is not None else "not_loaded"
+    return {
+        "status": "healthy",
+        "model_status": model_status,
+        "device": device if device else "unknown"
+    }
 
 if __name__ == "__main__":
-    import uvicorn
-    logger.info("Starting Translation API server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

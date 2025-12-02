@@ -15,7 +15,7 @@ export default function TranslationInterface() {
   const { t } = useLanguage()
   const [inputText, setInputText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
-  const [sourceLang, setSourceLang] = useState('nepali')
+  const [sourceLang, setSourceLang] = useState('ne_NP')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -26,10 +26,10 @@ export default function TranslationInterface() {
     setError('')
     
     try {
-      const response = await axios.post<TranslationResponse>('http://localhost:8000/translate', {
+      const response = await axios.post<TranslationResponse>('http://localhost:8001/translate', {
         text: inputText,
-        source_lang: sourceLang,
-        target_lang: 'english'
+        src_lang: sourceLang,
+        tgt_lang: 'en_XX'
       })
       
       setTranslatedText(response.data.translated_text)
@@ -63,8 +63,8 @@ export default function TranslationInterface() {
                 onChange={(e) => setSourceLang(e.target.value)}
                 className="cultural-select"
               >
-                <option value="nepali">{t('common.nepali')}</option>
-                <option value="sinhala">{t('common.sinhala')}</option>
+                <option value="ne_NP">{t('common.nepali')}</option>
+                <option value="si_LK">{t('common.sinhala')}</option>
               </select>
 
             </div>
