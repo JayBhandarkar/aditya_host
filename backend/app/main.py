@@ -34,8 +34,14 @@ def home():
 
 @app.post("/translate")
 def translate_api(req: TranslateRequest):
-    result = translate_text(req.text, req.src_lang, req.tgt_lang)
-    return {"translated_text": result}
+    try:
+        result = translate_text(req.text, req.src_lang, req.tgt_lang)
+        return {"translated_text": result}
+    except Exception as e:
+        print(f"Translation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 @app.post("/ocr/printed")
 async def extract_printed_text(file: UploadFile = File(...)):

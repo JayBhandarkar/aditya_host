@@ -1,20 +1,46 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
+import Layout from '../../components/Layout'
 import { useLanguage } from '../../contexts/LanguageContext'
 import '../cultural-styles.css'
 
 export default function LearningPage() {
-  const [language, setLanguage] = useState('en')
-  const [theme, setTheme] = useState('light')
-  const [uiTheme, setUiTheme] = useState('nepali-theme')
   const [activeModule, setActiveModule] = useState(null)
   const [currentWordIndex, setCurrentWordIndex] = useState(0)
   const [quizAnswer, setQuizAnswer] = useState(null)
   const contentRef = useRef(null)
-  const pathname = usePathname()
+  const [voices, setVoices] = useState([])
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const availableVoices = speechSynthesis.getVoices()
+      setVoices(availableVoices)
+      console.log('Available voices:', availableVoices.map(v => `${v.name} (${v.lang})`))
+    }
+    loadVoices()
+    speechSynthesis.onvoiceschanged = loadVoices
+  }, [])
+
+  const speak = (text, lang = 'ne-NP') => {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = lang
+      utterance.rate = 0.8
+      utterance.volume = 1.0
+      
+      const voice = voices.find(v => v.lang.startsWith(lang.split('-')[0]))
+      if (voice) {
+        utterance.voice = voice
+        console.log(`Using voice: ${voice.name}`)
+      } else {
+        console.warn(`No ${lang} voice found. Using default.`)
+      }
+      
+      speechSynthesis.speak(utterance)
+    }
+  }
 
   const handleModuleClick = (module) => {
     setActiveModule(activeModule === module ? null : module)
@@ -46,56 +72,8 @@ export default function LearningPage() {
   const { t } = useLanguage()
 
   return (
-    <div className={`cultural-app ${theme} ${uiTheme}`} suppressHydrationWarning>
-      <header className="cultural-header">
-        <div className="header-ornament"></div>
-        <div className="header-content">
-          <div className="header-left">
-            <h1 className="main-title">संस्कृति</h1>
-            <p className="subtitle">{t('translate.title')}</p>
-          </div>
-          <div className="header-right">
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="cultural-select">
-              <option value="en">English</option>
-            </select>
-            <button className="theme-btn" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-            <button className="culture-btn" onClick={() => setUiTheme(uiTheme === 'nepali-theme' ? 'srilankan-theme' : 'nepali-theme')}>
-              {uiTheme === 'nepali-theme' ? '🏔️' : '🌴'}
-            </button>
-          </div>
-        </div>
-        <div className="header-ornament bottom"></div>
-      </header>
+    <Layout>
 
-      <aside className="cultural-sidebar">
-        <nav className="sidebar-nav">
-          <Link href="/text-translator" className={`sidebar-item ${pathname === '/text-translator' ? 'active' : ''}`}>
-            <span className="sidebar-icon">🔄</span>
-            <span className="sidebar-text">{t('nav.translate')}</span>
-          </Link>
-          <Link href="/image-upload" className={`sidebar-item ${pathname === '/image-upload' ? 'active' : ''}`}>
-            <span className="sidebar-icon">📷</span>
-            <span className="sidebar-text">Image/PDF Upload</span>
-          </Link>
-          <Link href="/learning-modules" className={`sidebar-item ${pathname === '/learning-modules' ? 'active' : ''}`}>
-            <span className="sidebar-icon">📚</span>
-            <span className="sidebar-text">{t('nav.learning')}</span>
-          </Link>
-          <Link href="/literature-centre" className={`sidebar-item ${pathname === '/literature-centre' ? 'active' : ''}`}>
-            <span className="sidebar-icon">📜</span>
-            <span className="sidebar-text">Literature Centre</span>
-          </Link>
-          <Link href="/download-extension" className={`sidebar-item ${pathname === '/download-extension' ? 'active' : ''}`}>
-            <span className="sidebar-icon">⬇️</span>
-            <span className="sidebar-text">Download Extension</span>
-          </Link>
-        </nav>
-      </aside>
-
-      <main className="cultural-main with-sidebar">
-        <div className="content-container">
           <div className="knowledge-temple">
             <div className="temple-header">
               <h2 className="temple-title">LEARNING MODULES</h2>
@@ -185,10 +163,7 @@ export default function LearningPage() {
                     ].map((item, i) => (
                       <div key={i} style={{background: 'white', padding: '20px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', transition: 'transform 0.3s ease'}} 
                            onClick={() => {
-                             if ('speechSynthesis' in window) {
-                               const utterance = new SpeechSynthesisUtterance(item.char)
-                               speechSynthesis.speak(utterance)
-                             }
+                             speak(item.char, 'ne-NP')
                              alert(`Character: ${item.char} (${item.trans})\n\nExample Word: ${item.word} = ${item.meaning}\n\nPronunciation Tip: ${item.tip}\n\nClick 🔊 to hear the sound!`)
                            }}>
                         <div style={{fontSize: '2.5rem', marginBottom: '8px', color: '#8b4513'}}>{item.char}</div>
@@ -240,10 +215,7 @@ export default function LearningPage() {
                     ].map((item, i) => (
                       <div key={i} style={{background: 'white', padding: '15px', textAlign: 'center', borderRadius: '10px', cursor: 'pointer', boxShadow: '0 3px 10px rgba(0,0,0,0.1)', transition: 'transform 0.3s ease'}} 
                            onClick={() => {
-                             if ('speechSynthesis' in window) {
-                               const utterance = new SpeechSynthesisUtterance(item.char)
-                               speechSynthesis.speak(utterance)
-                             }
+                             speak(item.char, 'ne-NP')
                              alert(`Consonant: ${item.char} (${item.trans})\n\nExample: ${item.word} = ${item.meaning}`)
                            }}>
                         <div style={{fontSize: '2rem', marginBottom: '5px', color: '#8b4513'}}>{item.char}</div>
@@ -273,10 +245,7 @@ export default function LearningPage() {
                     ].map((item, i) => (
                       <div key={i} style={{background: 'white', padding: '20px', textAlign: 'center', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', transition: 'transform 0.3s ease'}} 
                            onClick={() => {
-                             if ('speechSynthesis' in window) {
-                               const utterance = new SpeechSynthesisUtterance(item.char)
-                               speechSynthesis.speak(utterance)
-                             }
+                             speak(item.char, 'si-LK')
                              alert(`Character: ${item.char} (${item.trans})\n\nExample Word: ${item.word} = ${item.meaning}\n\nWriting Tip: ${item.tip}\n\nClick 🔊 to hear the sound!`)
                            }}>
                         <div style={{fontSize: '2.5rem', marginBottom: '8px', color: '#228b22'}}>{item.char}</div>
@@ -328,10 +297,7 @@ export default function LearningPage() {
                     ].map((item, i) => (
                       <div key={i} style={{background: 'white', padding: '15px', textAlign: 'center', borderRadius: '10px', cursor: 'pointer', boxShadow: '0 3px 10px rgba(0,0,0,0.1)', transition: 'transform 0.3s ease'}} 
                            onClick={() => {
-                             if ('speechSynthesis' in window) {
-                               const utterance = new SpeechSynthesisUtterance(item.char)
-                               speechSynthesis.speak(utterance)
-                             }
+                             speak(item.char, 'si-LK')
                              alert(`Consonant: ${item.char} (${item.trans})\n\nExample: ${item.word} = ${item.meaning}`)
                            }}>
                         <div style={{fontSize: '2rem', marginBottom: '5px', color: '#228b22'}}>{item.char}</div>
@@ -367,12 +333,7 @@ export default function LearningPage() {
                       <button style={{background: '#228b22', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer'}}
                               onClick={prevWord}>← Previous</button>
                       <button style={{background: '#32cd32', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer'}}
-                              onClick={() => {
-                                if ('speechSynthesis' in window) {
-                                  const utterance = new SpeechSynthesisUtterance(vocabularyWords[currentWordIndex].nepali)
-                                  speechSynthesis.speak(utterance)
-                                }
-                              }}>🔊 Listen</button>
+                              onClick={() => speak(vocabularyWords[currentWordIndex].nepali, 'ne-NP')}>🔊 Listen</button>
                       <button style={{background: '#228b22', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer'}}
                               onClick={nextWord}>Next →</button>
                     </div>
@@ -398,14 +359,7 @@ export default function LearningPage() {
                       <h4 style={{color: '#228b22', marginBottom: '12px', textAlign: 'center', fontSize: '1rem'}}>{category.category}</h4>
                       {category.words.map((word, j) => (
                         <div key={j} style={{marginBottom: '6px', padding: '6px', background: '#f8fff8', borderRadius: '5px', fontSize: '0.8rem', textAlign: 'center', cursor: 'pointer', transition: 'background 0.3s ease'}}
-                             onClick={() => {
-                               if ('speechSynthesis' in window) {
-                                 const nepaliWord = word.split(' (')[0]
-                                 const utterance = new SpeechSynthesisUtterance(nepaliWord)
-                                 utterance.lang = 'ne-NP'
-                                 speechSynthesis.speak(utterance)
-                               }
-                             }}
+                             onClick={() => speak(word.split(' (')[0], 'ne-NP')}
                              onMouseEnter={(e) => e.target.style.background = '#e8f5e8'}
                              onMouseLeave={(e) => e.target.style.background = '#f8fff8'}>
                           {word}
@@ -444,13 +398,7 @@ export default function LearningPage() {
                           {nepali: 'धन्यवाद धेरै', english: 'Thank you very much'}
                         ].map((phrase, k) => (
                           <div key={k} style={{background: 'white', padding: '10px', borderRadius: '6px', cursor: 'pointer'}}
-                               onClick={() => {
-                                 if ('speechSynthesis' in window) {
-                                   const utterance = new SpeechSynthesisUtterance(phrase.nepali)
-                                   utterance.lang = 'ne-NP'
-                                   speechSynthesis.speak(utterance)
-                                 }
-                               }}>
+                               onClick={() => speak(phrase.nepali, 'ne-NP')}>
                             <div style={{color: '#228b22', fontSize: '0.9rem', fontWeight: 'bold'}}>{phrase.nepali}</div>
                             <div style={{color: '#666', fontSize: '0.8rem'}}>{phrase.english}</div>
                           </div>
@@ -491,12 +439,7 @@ export default function LearningPage() {
                     </div>
                     <div style={{display: 'flex', gap: '15px', justifyContent: 'center'}}>
                       <button style={{background: '#228b22', color: 'white', border: 'none', padding: '12px 25px', borderRadius: '20px', fontSize: '1rem', cursor: 'pointer'}}
-                              onClick={() => {
-                                if ('speechSynthesis' in window) {
-                                  const utterance = new SpeechSynthesisUtterance('नमस्ते')
-                                  speechSynthesis.speak(utterance)
-                                }
-                              }}>
+                              onClick={() => speak('नमस्ते', 'ne-NP')}>
                         🔊 Hear Pronunciation
                       </button>
                       <button style={{background: '#32cd32', color: 'white', border: 'none', padding: '12px 25px', borderRadius: '20px', fontSize: '1rem', cursor: 'pointer'}}
@@ -770,8 +713,7 @@ export default function LearningPage() {
             )}
 
           </div>
-        </div>
-      </main>
+
 
       <style jsx>{`
         .learning-petal {
@@ -810,14 +752,6 @@ export default function LearningPage() {
         }
       `}</style>
 
-      <footer className="cultural-footer">
-        <div className="footer-pattern"></div>
-        <div className="footer-content">
-          <p>🕉️ संस्कृति - Multilingual Translation & Cultural Bridge 🕉️</p>
-          <p>Privacy-Safe • Cultural Heritage Preserved</p>
-        </div>
-        <div className="footer-pattern bottom"></div>
-      </footer>
-    </div>
+    </Layout>
   )
 }

@@ -194,7 +194,7 @@ class FloatingTranslator:
         
         # Cultural language selection
         lang_frame = tk.Frame(content, bg=self.colors['bg_secondary'], relief='solid', bd=2)
-        lang_frame.pack(fill=tk.X, pady=(0, 25), ipady=15)
+        lang_frame.pack(fill=tk.X, pady=(0, 25), ipady=8)
         
         tk.Label(
             lang_frame, 
@@ -215,27 +215,28 @@ class FloatingTranslator:
         
         self.from_lang = ttk.Combobox(
             lang_controls, 
-            values=["English", "Nepali", "Sinhala"], 
+            values=["Nepali", "Sinhala"], 
             state="readonly", 
             width=12,
             style='Cultural.TCombobox',
             font=('Inter', 10)
         )
-        self.from_lang.set("English")
+        self.from_lang.set("Nepali")
         self.from_lang.pack(side=tk.LEFT, padx=(0, 20))
         
         tk.Label(lang_controls, text="To:", bg=self.colors['bg_secondary'], fg=self.colors['text_secondary'], font=('Inter', 10)).pack(side=tk.LEFT, padx=(0, 8))
         
-        self.to_lang = ttk.Combobox(
-            lang_controls, 
-            values=["English", "Nepali", "Sinhala"], 
-            state="readonly", 
-            width=12,
-            style='Cultural.TCombobox',
-            font=('Inter', 10)
-        )
-        self.to_lang.set("Nepali")
-        self.to_lang.pack(side=tk.LEFT)
+        tk.Label(
+            lang_controls,
+            text="English",
+            bg=self.colors['bg_primary'],
+            fg=self.colors['text_primary'],
+            font=('Inter', 10, 'bold'),
+            relief='solid',
+            bd=1,
+            padx=10,
+            pady=2
+        ).pack(side=tk.LEFT)
         
         # Cultural input section
         input_section = tk.Frame(content, bg=self.colors['bg_secondary'], relief='solid', bd=2)
@@ -251,7 +252,7 @@ class FloatingTranslator:
         
         self.source_text = tk.Text(
             input_section, 
-            height=4, 
+            height=3, 
             font=('Inter', 11), 
             wrap=tk.WORD,
             bg=self.colors['bg_primary'],
@@ -299,7 +300,7 @@ class FloatingTranslator:
         
         self.result_text = tk.Text(
             output_section, 
-            height=5, 
+            height=8, 
             font=('Arial', 12, 'bold'), 
             wrap=tk.WORD,
             bg='#FFE4B5',
@@ -364,13 +365,12 @@ class FloatingTranslator:
         
         # Map display names to API codes
         lang_map = {
-            "English": "en_XX", 
             "Nepali": "ne_NP", 
             "Sinhala": "si_LK"
         }
         
         src_lang = lang_map.get(self.from_lang.get(), "en_XX")
-        tgt_lang = lang_map.get(self.to_lang.get(), "ne_NP")
+        tgt_lang = "en_XX"
         
         if not HAS_REQUESTS:
             # Fallback mock translations
