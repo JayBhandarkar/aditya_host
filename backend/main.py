@@ -2,13 +2,21 @@ import os
 import torch
 import requests
 import base64
-from fastapi import FastAPI, HTTPException, UploadFile, File
+import logging
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 from transformers import MBart50TokenizerFast, MBartForConditionalGeneration
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import uvicorn
 import gc
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +26,11 @@ app = FastAPI(
     description="Translate Nepali/Sinhala to English using fine-tuned MBART",
     version="1.0"
 )
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add CORS middleware
 app.add_middleware(
@@ -34,7 +47,7 @@ model = None
 device = None
 
 class TranslateRequest(BaseModel):
-    text: str
+    text: constr(max_length=1000)
     src_lang: str = "ne_NP"  # Default to Nepali
     tgt_lang: str = "en_XX"  # Default to English
 
@@ -44,10 +57,10 @@ def load_model_lazy():
     if tokenizer is None or model is None:
         MODEL_ID = os.getenv("MODEL_ID", "Nikss2709/Mbart-nepali-sinhala-finetuned")
         
-        print("Loading tokenizer...")
+        logger.info("Loading tokenizer...")
         tokenizer = MBart50TokenizerFast.from_pretrained(MODEL_ID)
         
-        print("Loading model with memory optimization...")
+        logger.info("Loading model with memory optimization...")
         device = "cuda" if torch.cuda.is_available() else "cpu"
         
         model = MBartForConditionalGeneration.from_pretrained(
@@ -72,38 +85,37 @@ def load_model_lazy():
             torch.cuda.empty_cache()
         gc.collect()
         
-        print(f"Model loaded on: {device} with memory optimizations")
+        logger.info(f"Model loaded on: {device} with memory optimizations")
 
 def translate_text(text: str, src_lang: str, tgt_lang: str):
     try:
-        print(f"\n=== Starting translation ===")
-        print(f"Text: '{text}'")
-        print(f"From {src_lang} to {tgt_lang}")
+        logger.info(f"Starting translation: '{text[:50]}...' from {src_lang} to {tgt_lang}")
         
         load_model_lazy()
         
         if not tokenizer or not model:
             raise HTTPException(status_code=500, detail="Model not loaded")
         
-        print(f"Setting tokenizer languages...")
+        logger.info("Setting tokenizer languages...")
         tokenizer.src_lang = src_lang
         tokenizer.tgt_lang = tgt_lang
 
-        print(f"Encoding text...")
+        logger.info("Encoding text...")
         encoded = tokenizer(
             text,
             return_tensors="pt",
             truncation=True,
             padding=True,
-            max_length=128
+            max_length=512
         ).to(device)
-        print(f"Text encoded, shape: {encoded['input_ids'].shape}")
+        logger.info(f"Text encoded, shape: {encoded['input_ids'].shape}")
 
-        print(f"Generating translation...")
+        logger.info("Generating translation...")
         with torch.no_grad():
             generated = model.generate(
                 **encoded,
-                max_length=128,
+                max_length=512,
+                max_new_tokens=200,
                 num_beams=2,
                 early_stopping=True,
                 use_cache=False
@@ -112,14 +124,13 @@ def translate_text(text: str, src_lang: str, tgt_lang: str):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()
-        print(f"Translation generated")
+        logger.info("Translation generated")
 
         output = tokenizer.decode(generated[0], skip_special_tokens=True)
-        print(f"Decoded output: '{output}'")
-        print(f"=== Translation complete ===\n")
+        logger.info(f"Translation complete: '{output[:50]}...'")
         return output
     except Exception as e:
-        print(f"\n!!! ERROR in translate_text: {str(e)}")
+        logger.error(f"Translation error: {str(e)}")
         import traceback
         traceback.print_exc()
         raise
@@ -129,13 +140,14 @@ def home():
     return {"message": "Translation API is running!", "status": "healthy"}
 
 @app.post("/translate")
-def translate_api(req: TranslateRequest):
+@limiter.limit("5/minute")
+def translate_api(request: Request, req: TranslateRequest):
     try:
-        print(f"\nReceived translation request: {req}")
+        logger.info(f"Received translation request: {req.src_lang} -> {req.tgt_lang}")
         result = translate_text(req.text, req.src_lang, req.tgt_lang)
         return {"translated_text": result, "source_language": req.src_lang, "target_language": req.tgt_lang}
     except Exception as e:
-        print(f"\n!!! ERROR in translate_api: {str(e)}")
+        logger.error(f"API error: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
@@ -206,4 +218,4 @@ async def extract_handwritten_text(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
