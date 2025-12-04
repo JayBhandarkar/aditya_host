@@ -37,7 +37,7 @@ export default function TranslationInterface() {
 
       try {
         const endpoint = type === 'printed' ? '/ocr/printed' : '/ocr/handwritten'
-        const response = await axios.post(`http://localhost:8000${endpoint}`, formData, {
+        const response = await axios.post(`https://host-backend-i15y.onrender.com${endpoint}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
         setInputText(response.data.extracted_text)
@@ -116,7 +116,7 @@ export default function TranslationInterface() {
     setError('')
     
     try {
-      const response = await axios.post<TranslationResponse>('http://localhost:8000/translate', {
+      const response = await axios.post<TranslationResponse>('https://host-backend-i15y.onrender.com/translate', {
         text: inputText,
         src_lang: sourceLang,
         tgt_lang: targetLang
@@ -129,7 +129,7 @@ export default function TranslationInterface() {
       // Show success message
       if (translation && translation !== 'No translation received') {
         setTimeout(() => {
-          const outputElement = document.querySelector('textarea[readonly]')
+          const outputElement = document.querySelector('textarea[readonly]') as HTMLTextAreaElement
           if (outputElement) {
             outputElement.style.backgroundColor = '#e8f5e8'
             setTimeout(() => {
