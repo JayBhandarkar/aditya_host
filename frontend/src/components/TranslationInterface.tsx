@@ -126,7 +126,7 @@ export default function TranslationInterface() {
       const translation = response.data.translated_text || 'No translation received'
       setTranslatedText(translation)
       
-      // Show success message
+      // Show success message with animation
       if (translation && translation !== 'No translation received') {
         setTimeout(() => {
           const outputElement = document.querySelector('textarea[readonly]') as HTMLTextAreaElement
