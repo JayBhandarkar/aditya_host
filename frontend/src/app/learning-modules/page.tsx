@@ -10,7 +10,7 @@ export default function LearningPage() {
   const [currentWordIndex, setCurrentWordIndex] = useState(0)
   const [quizAnswer, setQuizAnswer] = useState(null)
   const contentRef = useRef(null)
-  const [voices, setVoices] = useState([])
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
   useEffect(() => {
     const loadVoices = () => {
