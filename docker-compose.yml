@@ -1,66 +1,55 @@
-version: '3.8'
+version: '3.9'
 
 services:
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: aditya-backend
+    restart: always
     expose:
       - "8000"
     environment:
-      - PORT=8000
-    env_file:
-      - ./backend/.env
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 4G
+      - GOOGLE_VISION_API_KEY=${GOOGLE_VISION_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 60s
-      timeout: 30s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 120s
+      start_period: 40s
+    networks:
+      - app-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: aditya-frontend
+    restart: always
     expose:
       - "3000"
     environment:
-      - NODE_ENV=production
-      - NEXT_TELEMETRY_DISABLED=1
-      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_API_URL=http://backend:8000
     depends_on:
       backend:
         condition: service_healthy
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 512M
+    networks:
+      - app-network
 
   nginx:
     image: nginx:alpine
+    container_name: aditya-nginx
+    restart: always
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      frontend:
-        condition: service_started
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
+      - frontend
+      - backend
+    networks:
+      - app-network
 
-volumes:
-  app_data:
+networks:
+  app-network:
+    driver: bridge
