@@ -10,9 +10,9 @@ export default function LiteratureCentre() {
   const [language, setLanguage] = useState('en')
   const [theme, setTheme] = useState('light')
   const [uiTheme, setUiTheme] = useState('nepali-theme')
-  const [selectedManuscript, setSelectedManuscript] = useState(null)
+  const [selectedManuscript, setSelectedManuscript] = useState<any>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [currentSpeech, setCurrentSpeech] = useState(null)
+  const [currentSpeech, setCurrentSpeech] = useState<SpeechSynthesisUtterance | null>(null)
   const [showEbook, setShowEbook] = useState(false)
   const pathname = usePathname()
 
