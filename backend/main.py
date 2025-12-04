@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from transformers import MBart50TokenizerFast, MBartForConditionalGeneration
 from dotenv import load_dotenv
 import uvicorn
+import gc
 
 # Load environment variables
 load_dotenv()
@@ -50,8 +51,9 @@ def load_model_lazy():
         print("Loading tokenizer...")
         tokenizer = MBart50TokenizerFast.from_pretrained(MODEL_ID)
         
-        print("Loading model with low memory usage...")
+        print("Loading model with memory optimization...")
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        
         model = MBartForConditionalGeneration.from_pretrained(
             MODEL_ID,
             low_cpu_mem_usage=True,
@@ -62,7 +64,19 @@ def load_model_lazy():
         model = model.to(device)
         model.eval()
         
-        print(f"Model loaded on: {device}")
+        # Memory optimization without changing model
+        if hasattr(model.config, 'use_cache'):
+            model.config.use_cache = False
+        
+        # Compile model for memory efficiency (PyTorch 2.0+)
+        if hasattr(torch, 'compile'):
+            model = torch.compile(model, mode="reduce-overhead")
+        
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+        
+        print(f"Model loaded on: {device} with memory optimizations")
 
 def translate_text(text: str, src_lang: str, tgt_lang: str):
     try:
@@ -90,12 +104,18 @@ def translate_text(text: str, src_lang: str, tgt_lang: str):
         print(f"Text encoded, shape: {encoded['input_ids'].shape}")
 
         print(f"Generating translation...")
-        generated = model.generate(
-            **encoded,
-            max_length=128,
-            num_beams=4,
-            early_stopping=True
-        )
+        with torch.no_grad():
+            generated = model.generate(
+                **encoded,
+                max_length=128,
+                num_beams=2,
+                early_stopping=True,
+                use_cache=False
+            )
+        
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
         print(f"Translation generated")
 
         output = tokenizer.decode(generated[0], skip_special_tokens=True)
