@@ -37,7 +37,8 @@ export default function TranslationInterface() {
 
       try {
         const endpoint = type === 'printed' ? '/ocr/printed' : '/ocr/handwritten'
-        const response = await axios.post(`https://host-backend-i15y.onrender.com${endpoint}`, formData, {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+        const response = await axios.post(`${API_BASE}${endpoint}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
         setInputText(response.data.extracted_text)
@@ -116,7 +117,8 @@ export default function TranslationInterface() {
     setError('')
     
     try {
-      const response = await axios.post<TranslationResponse>('https://host-backend-i15y.onrender.com/translate', {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+      const response = await axios.post<TranslationResponse>(`${API_BASE}/translate`, {
         text: inputText,
         src_lang: sourceLang,
         tgt_lang: targetLang

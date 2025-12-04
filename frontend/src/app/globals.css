@@ -373,6 +373,37 @@ body {
   }
 }
 
+@media (max-width: 600px) {
+  .translator-shrine {
+    padding: 15px;
+    margin: 10px;
+  }
+  
+  .shrine-title {
+    font-size: 1.5rem;
+  }
+  
+  .sacred-textarea {
+    height: 120px;
+    padding: 15px;
+  }
+  
+  .transform-btn {
+    padding: 12px 20px;
+    font-size: 1rem;
+  }
+  
+  .cultural-select {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  
+  .voice-btn {
+    width: 35px;
+    height: 35px;
+  }
+}
+
 .sacred-upload {
   border: 3px dashed var(--accent);
   padding: 60px 40px;
