@@ -54,7 +54,9 @@ def load_model_lazy():
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = MBartForConditionalGeneration.from_pretrained(
             MODEL_ID,
-            low_cpu_mem_usage=True
+            low_cpu_mem_usage=True,
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            device_map="auto" if device == "cuda" else None
         )
         
         model = model.to(device)
@@ -187,4 +189,5 @@ async def extract_handwritten_text(file: UploadFile = File(...)):
     return {"extracted_text": "No text found in image", "type": "handwritten"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
