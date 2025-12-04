@@ -22,7 +22,7 @@ export default function LearningPage() {
     speechSynthesis.onvoiceschanged = loadVoices
   }, [])
 
-  const speak = (text, lang = 'ne-NP') => {
+  const speak = (text: string, lang = 'ne-NP') => {
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel()
       const utterance = new SpeechSynthesisUtterance(text)
