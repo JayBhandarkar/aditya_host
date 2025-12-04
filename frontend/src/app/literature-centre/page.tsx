@@ -32,12 +32,12 @@ export default function LiteratureCentre() {
     }
   }
 
-  const handleManuscriptClick = (manuscript) => {
+  const handleManuscriptClick = (manuscript: any) => {
     setSelectedManuscript(manuscript)
     setShowEbook(true)
   }
 
-  const handleAudioPlay = (manuscript) => {
+  const handleAudioPlay = (manuscript: any) => {
     // Stop any current speech
     stopCurrentSpeech()
     
@@ -99,7 +99,7 @@ export default function LiteratureCentre() {
     }
   }
 
-  const getEbookContent = (manuscript) => {
+  const getEbookContent = (manuscript: any) => {
     const contents = {
       'रामायण': {
         downloadUrl: 'https://archive.org/details/ShrimadValmikiRamayan-SanskritTextWithHindiTranslation-DpSharma10/ShrimadValmikiRamayan-SktHindi-DpSharmaVol01-BalaKanda1927/',
@@ -141,7 +141,7 @@ export default function LiteratureCentre() {
     return contents[manuscript.title] || { downloadUrl: '#', description: 'PDF download and extension translation available.' }
   }
   
-  const getManuscriptContent = (manuscript) => {
+  const getManuscriptContent = (manuscript: any) => {
     const contents = {
       'रामायण': 'Ramayana - The epic tale of Lord Rama. Ra-ma-ya-na, the story of Prince Rama from Ayodhya. A timeless saga of dharma, devotion, and righteousness that has guided humanity for millennia.',
       'महाभारत': 'Mahabharata - The great epic of the Bharata dynasty. Ma-ha-bha-ra-ta, the eternal conflict between dharma and adharma. An epic war between good and evil, teaching us about duty and moral choices.',
@@ -156,7 +156,7 @@ export default function LiteratureCentre() {
     return contents[manuscript.title] || `${manuscript.title} - ${manuscript.description}`
   }
   
-  const getVoiceSettings = (manuscript) => {
+  const getVoiceSettings = (manuscript: any) => {
     const settings = {
       'रामायण': { rate: 0.8, pitch: 1.0, volume: 1, lang: 'hi-IN', voiceName: 'Hindi' },
       'महाभारत': { rate: 0.7, pitch: 0.9, volume: 1, lang: 'hi-IN', voiceName: 'Hindi' },
