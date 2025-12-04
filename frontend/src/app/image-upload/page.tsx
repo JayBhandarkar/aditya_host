@@ -72,7 +72,8 @@ export default function ImageUpload() {
       formData.append('file', file)
       
       const endpoint = type === 'printed' ? '/ocr/printed' : '/ocr/handwritten'
-      const response = await fetch(`https://host-backend-i15y.onrender.com${endpoint}`, {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         body: formData
       })
@@ -129,7 +130,8 @@ export default function ImageUpload() {
 
     setLoading(true)
     try {
-      const response = await fetch('https://host-backend-i15y.onrender.com/translate', {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${API_BASE}/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
